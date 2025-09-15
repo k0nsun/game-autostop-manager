@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Auto-Stop Manager</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <style>
+    body { max-width: 1100px; margin: 2rem auto; }
+    code { font-size: 0.9em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 1rem; }
+    .muted { color: #666; }
+    .badge { padding: 0.15rem 0.45rem; border-radius: 6px; background: #eee; }
+    details { border: 1px solid #eee; padding: 0.5rem 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Game Auto-Stop Manager</h2>
+  <p class="muted">Gère plusieurs serveurs de jeux (Unraid) et arrête les conteneurs après X minutes sans joueur.</p>
+
+  <article>
+    <h4>Nouveau watcher</h4>
+    <form id="formNew">
+      <div class="grid">
+        <label>Nom <input name="name" required /></label>
+        <label>Conteneur cible (nom ou ID) <input name="targetContainer" required /></label>
+        <label>Gamedig type
+          <select name="gamedigType" required>
+            <option value="valheim">valheim</option>
+            <option value="vrising">vrising</option>
+            <option value="protocol-valve">protocol-valve</option>
+            <option value="minecraft">minecraft</option>
+            <option value="seven_days_to_die">seven_days_to_die</option>
+          </select>
+        </label>
+        <label>Host (IP/DNS) <input name="queryHost" required /></label>
+        <label>Port <input name="queryPort" type="number" required value="27015" /></label>
+        <label>Inactivité (min) <input name="inactivityMinutes" type="number" value="10" /></label>
+        <label>Intervalle (sec) <input name="checkIntervalSec" type="number" value="60" /></label>
+        <label>Timeout arrêt (sec) <input name="stopTimeoutSec" type="number" value="60" /></label>
+        <label>Autostart <input type="checkbox" name="autostart" checked /></label>
+      </div>
+      <button type="submit">Ajouter</button>
+      <button type="button" id="btnListContainers">Lister les conteneurs Docker</button>
+    </form>
+  </article>
+
+  <article>
+    <h4>Watchers</h4>
+    <div id="watchers"></div>
+  </article>
+
+  <article>
+    <h4>Événements</h4>
+    <pre id="log" style="max-height: 260px; overflow:auto; background:#0b1021; color:#bfe1ff; padding:1rem; border-radius:8px"></pre>
+  </article>
+
+  <dialog id="dlg">
+    <article>
+      <header>
+        <strong>Conteneurs Docker</strong>
+        <a href="#" aria-label="Close" class="close" onclick="dlg.close()"></a>
+      </header>
+      <div id="dock"></div>
+    </article>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

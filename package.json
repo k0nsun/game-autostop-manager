@@ -1,0 +1,17 @@
+{
+  "name": "game-autostop-manager",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Manage multiple game server containers and auto-stop them after inactivity (Unraid-friendly).",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "express": "^4.19.2",
+    "gamedig": "^4.1.2",
+    "morgan": "^1.10.0",
+    "nanoid": "^4.0.2"
+  }
+}
