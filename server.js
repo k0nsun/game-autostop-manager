@@ -32,7 +32,6 @@ manager.subscribe(e => console.log(`[autostop] ${e.type}: ${e.msg}`));
 await manager.load();
 await manager.syncFromDockerLabels?.();
 await manager.autostart();
-manager.scheduleRescan?.(process.env.RESCAN_INTERVAL_SEC);
 
 // --- API (watchers only) ---
 app.get('/api/watchers', auth, (req, res)=>{ res.json(manager.list()); });
@@ -46,19 +45,18 @@ app.get('/api/test-query', auth, async (req, res)=>{ try { const out = await man
 
 app.get('/health', (req, res)=>{ const list = manager.list(); const running = list.filter(w=>w.running).length; res.json({ ok:true, watchers: list.length, running }); });
 
-// SSE for live logs
+// SSE for live logs (fixed ping line)
 app.get('/api/events', auth, (req, res)=>{
   res.setHeader('Content-Type','text/event-stream');
   res.setHeader('Cache-Control','no-cache');
   res.setHeader('Connection','keep-alive');
-  const send = (event)=>{ res.write(`data: ${JSON.stringify(event)}
-
-`); };
+  if (res.flushHeaders) res.flushHeaders();
+  const send = (event)=>{ res.write('data: ' + JSON.stringify(event) + '\n\n'); };
   const unsub = manager.subscribe(send);
-  const ping = setInterval(()=>res.write(': ping
-
-'), 25000);
-  req.on('close', ()=>{ unsub(); clearInterval(ping); });
+  const ping = setInterval(()=>{
+    res.write(': ping\n\n'); // keep-alive comment line
+  }, 25000);
+  req.on('close', ()=>{ clearInterval(ping); unsub(); try{res.end();}catch{} });
 });
 
 app.use('/', express.static(path.join(__dirname, 'public')));
