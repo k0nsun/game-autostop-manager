@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
+const CONFIG_PATH = process.env.CONFIG_PATH || path.join(DATA_DIR, 'config.json');
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 // --- tiny bearer auth middleware (optional) ---
