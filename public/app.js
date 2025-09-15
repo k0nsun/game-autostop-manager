@@ -1,12 +1,12 @@
 const API = '';
-const authHeader = ()=>{
-  const token = localStorage.getItem('ADMIN_TOKEN')||'';
-  return token ? { 'Authorization': 'Bearer '+token } : {};
+
+const authHeader = () => {
+  const token = localStorage.getItem('ADMIN_TOKEN') || '';
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
 };
 
 const elWatchers = document.getElementById('watchers');
 const elLog = document.getElementById('log');
-const dlg = document.getElementById('dlg');
 
 function formToJson(form){
   const data = Object.fromEntries(new FormData(form).entries());
@@ -18,38 +18,41 @@ function formToJson(form){
   return data;
 }
 
+function watcherCardHtml(w){
+  return `
+  <summary><strong>${w.name}</strong> — ${w.running? 'watcher <span style="color:green">ON</span>':'watcher <span style="color:crimson">OFF</span>'} → <code>${w.targetContainer}</code></summary>
+  <div class="grid">
+    <label>Nom<br><input id="name-${w.id}" value="${w.name}"></label>
+    <label>Conteneur<br><input id="target-${w.id}" value="${w.targetContainer}"></label>
+    <label>Type<br><input id="type-${w.id}" value="${w.gamedigType}"></label>
+    <label>Host<br><input id="host-${w.id}" value="${w.queryHost}"></label>
+    <label>Port<br><input id="port-${w.id}" type="number" value="${w.queryPort}"></label>
+    <label>Inactivité (min)<br><input id="ina-${w.id}" type="number" value="${w.inactivityMinutes}"></label>
+    <label>Intervalle (s)<br><input id="ivl-${w.id}" type="number" value="${w.checkIntervalSec}"></label>
+    <label>Timeout arrêt (s)<br><input id="tmo-${w.id}" type="number" value="${w.stopTimeoutSec}"></label>
+    <label>Autostart<br><input id="auto-${w.id}" type="checkbox" ${w.autostart?'checked':''}></label>
+  </div>
+  <div class="actions">
+    <button data-id="${w.id}" data-act="start">Démarrer watcher</button>
+    <button data-id="${w.id}" data-act="stop">Arrêter watcher</button>
+    <button data-id="${w.id}" data-act="save">Enregistrer</button>
+    <button data-id="${w.id}" data-act="delete">Supprimer</button>
+  </div>`;
+}
+
 async function loadWatchers(){
   const res = await fetch(API+'/api/watchers', { headers: { 'Content-Type':'application/json', ...authHeader() }});
   const list = await res.json();
   elWatchers.innerHTML = '';
   for (const w of list){
     const card = document.createElement('details');
-    card.innerHTML = `
-      <summary><strong>${w.name}</strong> <span class="badge">${w.running? 'watcher ON':'watcher OFF'}</span> <small class="muted">→ ${w.targetContainer}</small></summary>
-      <div class="grid">
-        <label>Nom <input id="name-${w.id}" value="${w.name}" /></label>
-        <label>Conteneur <input id="target-${w.id}" value="${w.targetContainer}" /></label>
-        <label>Type <input id="type-${w.id}" value="${w.gamedigType}" /></label>
-        <label>Host <input id="host-${w.id}" value="${w.queryHost}" /></label>
-        <label>Port <input id="port-${w.id}" type="number" value="${w.queryPort}" /></label>
-        <label>Inactivité <input id="ina-${w.id}" type="number" value="${w.inactivityMinutes}" /></label>
-        <label>Intervalle <input id="ivl-${w.id}" type="number" value="${w.checkIntervalSec}" /></label>
-        <label>Timeout arrêt <input id="tmo-${w.id}" type="number" value="${w.stopTimeoutSec}" /></label>
-        <label>Autostart <input id="auto-${w.id}" type="checkbox" ${w.autostart? 'checked':''} /></label>
-      </div>
-      <div>
-        <button data-act="start" data-id="${w.id}">Démarrer watcher</button>
-        <button data-act="stop" data-id="${w.id}">Arrêter watcher</button>
-        <button data-act="save" data-id="${w.id}">Enregistrer</button>
-        <button data-act="delete" data-id="${w.id}" class="secondary">Supprimer</button>
-      </div>
-    `;
+    card.innerHTML = watcherCardHtml(w);
     elWatchers.appendChild(card);
   }
 }
 
 async function actionWatcher(id, action){
-  await fetch(API+`/api/watchers/${id}/${action}`, { method:'POST', headers: { ...authHeader() }});
+  await fetch(API+`/api/watchers/${id}/${action}`,{ method:'POST', headers: { ...authHeader() }});
   await loadWatchers();
 }
 
@@ -65,19 +68,22 @@ async function saveWatcher(id){
     stopTimeoutSec: Number(document.getElementById(`tmo-${id}`).value),
     autostart: document.getElementById(`auto-${id}`).checked
   };
-  await fetch(API+`/api/watchers/${id}`, { method:'PUT', headers: { 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify(patch) });
+  await fetch(API+`/api/watchers/${id}`, {
+    method:'PUT', headers: { 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify(patch)
+  });
   await loadWatchers();
 }
 
-// New watcher form
 const formNew = document.getElementById('formNew');
-formNew.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const data = formToJson(formNew);
-  await fetch(API+'/api/watchers', { method:'POST', headers: { 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify(data)});
-  formNew.reset();
-  await loadWatchers();
-});
+if (formNew) {
+  formNew.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const data = formToJson(formNew);
+    await fetch(API+'/api/watchers', { method:'POST', headers: { 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify(data)});
+    formNew.reset();
+    await loadWatchers();
+  });
+}
 
 elWatchers.addEventListener('click', async (e)=>{
   const btn = e.target.closest('button');
@@ -92,40 +98,19 @@ elWatchers.addEventListener('click', async (e)=>{
   }
 });
 
-// Containers list dialog
-const btnList = document.getElementById('btnListContainers');
-btnList.addEventListener('click', async ()=>{
-  const res = await fetch(API+'/api/containers', { headers: { ...authHeader() }});
-  const list = await res.json();
-  const dock = document.getElementById('dock');
-  dock.innerHTML = '<table><thead><tr><th>Nom</th><th>Image</th><th>État</th><th>Actions</th></tr></thead><tbody></tbody></table>';
-  const tbody = dock.querySelector('tbody');
-  for (const c of list){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${c.name}</td><td>${c.image}</td><td>${c.state}</td><td>
-      <button data-id="${c.id}" data-a="start">start</button>
-      <button data-id="${c.id}" data-a="stop">stop</button>
-    </td>`;
-    tbody.appendChild(tr);
-  }
-  dock.addEventListener('click', async (e)=>{
-    const b = e.target.closest('button');
-    if (!b) return;
-    const res = await fetch(API+`/api/containers/${b.dataset.id}/${b.dataset.a}`, { method:'POST', headers: { ...authHeader() }});
-    if (!res.ok) alert('Action échouée');
-  }, { once: true });
-  dlg.showModal();
-});
-
-// Live events
+// SSE + auto-refresh (debounce)
 function connectSSE(){
   const es = new EventSource(API+'/api/events', { withCredentials: false });
+  let refreshTimer = null;
   es.onmessage = (e)=>{
     try {
       const evt = JSON.parse(e.data);
-      const line = `[${new Date().toLocaleTimeString()}] ${evt.msg || JSON.stringify(evt)}\n`;
+      const line = `[${new Date().toLocaleTimeString()}] ${evt.msg || JSON.stringify(evt)}
+`;
       elLog.textContent += line;
       elLog.scrollTop = elLog.scrollHeight;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadWatchers, 500);
     } catch {}
   };
 }

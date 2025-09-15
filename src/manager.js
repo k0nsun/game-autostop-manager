@@ -1,38 +1,55 @@
-// src/manager.js
 import Docker from 'dockerode';
-import fs from 'fs/promises';
+import * as fsp from 'fs/promises';
 import path from 'path';
 import { nanoid } from 'nanoid';
 import Gamedig from 'gamedig';
 
 export class WatchManager {
   constructor(opts){
-    this.dataDir = opts.dataDir;
-    this.configPath = opts.configPath;
+    const envData = process.env.DATA_DIR || process.env.DATA || '/data';
+    this.dataDir = opts.dataDir || envData;
+    this.configPath = opts.configPath || process.env.CONFIG_PATH || path.join(this.dataDir, 'config.json');
     this.docker = new Docker({ socketPath: process.env.DOCKER_SOCK || '/var/run/docker.sock' });
     this.watchers = new Map(); // id -> state
     this.config = { watchers: [] };
     this.listeners = new Set();
+    this.labelPrefix = process.env.LABEL_PREFIX || 'autostop.';
+    this.rescanTimer = null;
   }
 
   async load(){
     try {
-      const raw = await fs.readFile(this.configPath, 'utf8');
+      const raw = await fsp.readFile(this.configPath, 'utf8');
       this.config = JSON.parse(raw);
       if (!Array.isArray(this.config.watchers)) this.config.watchers = [];
+      for (const w of this.config.watchers) {
+        if (typeof w.autostart !== 'boolean') w.autostart = true;
+      }
     } catch {
       this.config = { watchers: [] };
     }
   }
 
   async save(){
-    await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2));
+    const dir = path.dirname(this.configPath);
+    await fsp.mkdir(dir, { recursive: true });
+    const tmp = this.configPath + '.tmp';
+    const data = JSON.stringify(this.config, null, 2);
+    const fh = await fsp.open(tmp, 'w');
+    try {
+      await fh.writeFile(data, 'utf8');
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
+    await fsp.rename(tmp, this.configPath);
   }
 
   subscribe(cb){
     this.listeners.add(cb);
     return ()=>this.listeners.delete(cb);
   }
+
   emit(event){
     for (const cb of this.listeners) cb(event);
   }
@@ -54,6 +71,9 @@ export class WatchManager {
     const w = this.validate(input);
     this.config.watchers.push(w);
     await this.save();
+    if (w.autostart) {
+      try { await this.startWatcher(w.id); } catch {}
+    }
     return w;
   }
 
@@ -65,6 +85,8 @@ export class WatchManager {
     await this.save();
     if (this.watchers.has(id)){
       await this.stopWatcher(id);
+      await this.startWatcher(id);
+    } else if (w.autostart) {
       await this.startWatcher(id);
     }
     return w;
@@ -96,7 +118,7 @@ export class WatchManager {
     try {
       await container.stop({ t: stopTimeoutSec });
     } catch(e){
-      this.emit({ type:'error', msg:`Stop error: ${e.message}`});
+      this.emit({ type:'error', msg:`Stop error: ${e.message}` });
     }
   }
 
@@ -116,19 +138,19 @@ export class WatchManager {
     const state = this.watchers.get(w.id);
     if (!running){
       state.emptyMinutes = 0; state.lastPlayers = -1;
-      return; // do nothing while stopped
+      return; // ne fait rien si le conteneur est arrêté
     }
     try {
       const result = await Gamedig.query({ type: w.gamedigType, host: w.queryHost, port: Number(w.queryPort) });
       const players = Array.isArray(result.players) ? result.players.length : (typeof result.numplayers==='number'? result.numplayers : 0);
       if (players !== state.lastPlayers){
-        this.emit({ type:'info', msg:`[${w.name}] joueurs: ${players}`});
+        this.emit({ type:'info', msg:`[${w.name}] joueurs: ${players}` });
         state.lastPlayers = players;
       }
       if (players === 0){
         state.emptyMinutes += state.intervalSec/60;
         if (state.emptyMinutes >= w.inactivityMinutes){
-          this.emit({ type:'info', msg:`[${w.name}] arrêt (inactivité)`});
+          this.emit({ type:'info', msg:`[${w.name}] arrêt (inactivité)` });
           await this.stopGracefully(container, w.stopTimeoutSec);
           state.emptyMinutes = 0; state.lastPlayers = -1;
         }
@@ -136,18 +158,22 @@ export class WatchManager {
         state.emptyMinutes = 0;
       }
     } catch(e){
-      // Don't penalize when query fails (server booting or ports closed)
-      this.emit({ type:'warn', msg:`[${w.name}] Query indisponible (aucune pénalité)`});
+      this.emit({ type:'warn', msg:`[${w.name}] Query indisponible (aucune pénalité)` });
     }
   }
 
   async startWatcher(id){
     const w = this.config.watchers.find(w=>w.id===id);
     if (!w) throw new Error('Watcher not found');
-    if (this.watchers.has(id)) return; // already running
+    if (this.watchers.has(id)) return; // déjà en marche
     const intervalSec = Number(w.checkIntervalSec || 60);
-    const state = { timer: null, intervalSec, emptyMinutes: 0, lastPlayers: -1 };
-    const run = async ()=>{ await this.tickOne(w); };
+    const state = { timer: null, intervalSec, emptyMinutes: 0, lastPlayers: -1, busy: false };
+    const run = async ()=>{
+      if (state.busy) return;
+      state.busy = true;
+      try { await this.tickOne(w); }
+      finally { state.busy = false; }
+    };
     state.timer = setInterval(run, intervalSec*1000);
     this.watchers.set(id, state);
     this.emit({ type:'info', msg:`[${w.name}] watcher démarré (toutes ${intervalSec}s)`});
@@ -159,6 +185,12 @@ export class WatchManager {
     if (!state) return;
     clearInterval(state.timer);
     this.watchers.delete(id);
+  }
+
+  async stopAllWatchers(){
+    for (const id of [...this.watchers.keys()]) {
+      await this.stopWatcher(id);
+    }
   }
 
   async listDockerContainers(){
@@ -177,7 +209,16 @@ export class WatchManager {
     const c = await this.getContainer(idOrName);
     if (!c) throw new Error('Container not found');
     if (action === 'start') { await c.start(); return { ok:true }; }
-    if (action === 'stop') { await c.stop({ t: 60 }); return { ok:true }; }
+    if (action === 'stop')  { await c.stop({ t: 60 }); return { ok:true }; }
     throw new Error('Unsupported action');
   }
-}
+
+  async syncFromDockerLabels(){
+    const prefix = this.labelPrefix;
+    if (!prefix) return;
+    const containers = await this.listDockerContainers();
+    let changed = false;
+    for (const c of containers){
+      const L = c.labels || {};
+      const enabledRaw = L[`${prefix}enabled`];
+      if
