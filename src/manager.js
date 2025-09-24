@@ -15,7 +15,9 @@ export class WatchManager {
     this.watchers = new Map(); // id -> runtime state
     this.config = { watchers: [] };
     this.listeners = new Set();
-    this.labelPrefix = process.env.LABEL_PREFIX ?? 'autostop.';
+    self.ipCache = new Map();
+        self.ipCacheTTL = 300; // seconds
+        self.labelPrefix = process.env.LABEL_PREFIX ?? 'autostop.';
     this.rescanTimer = null;
   }
 
@@ -142,7 +144,30 @@ export class WatchManager {
     return { ok:true, players: count, name: state.name ?? '' };
   }
 
-  // Single tick for one watcher: query players and enforce inactivity policy
+  
+  async resolveContainerIPWithCache(containerName) {
+    const now = Date.now() / 1000;
+    const cached = this.ipCache.get(containerName);
+    if (cached && (now - cached.timestamp < this.ipCacheTTL)) {
+      return cached.ip;
+    }
+    try {
+      const container = await this.getContainer(containerName);
+      if (!container) return null;
+      const info = await container.inspect();
+      const networks = info.NetworkSettings.Networks;
+      const ip = Object.values(networks)[0]?.IPAddress;
+      if (ip) {
+        this.ipCache.set(containerName, { ip, timestamp: now });
+      }
+      return ip || null;
+    } catch (err) {
+      this.emit({ type: 'warn', msg: `[resolveIP] ${containerName}: ${err.message}` });
+      return null;
+    }
+  }
+
+// Single tick for one watcher: query players and enforce inactivity policy
   async tickOne(w) {
     const container = await this.getContainer(w.targetContainer);
     if (!container){
@@ -157,7 +182,12 @@ export class WatchManager {
       return;
     }
     try {
-      const result = await Gamedig.query({ type: w.gamedigType, host: w.queryHost, port: Number(w.queryPort) });
+      const ip = await this.resolveContainerIPWithCache(w.targetContainer);
+      if (!ip) {
+        this.emit({ type: 'warn', msg: `[${w.name}] IP not resolved for container ${w.targetContainer}` });
+        return;
+      }
+      const result = await Gamedig.query({ type: w.gamedigType, host: ip, port: Number(w.queryPort) });
       const players = Array.isArray(result.players) ? result.players.length : (typeof result.numplayers==='number'? result.numplayers : 0);
 
       if (players !== state.lastPlayers){
