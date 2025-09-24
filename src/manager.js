@@ -15,9 +15,9 @@ export class WatchManager {
     this.watchers = new Map(); // id -> runtime state
     this.config = { watchers: [] };
     this.listeners = new Set();
-    self.ipCache = new Map();
-        self.ipCacheTTL = 300; // seconds
-        self.labelPrefix = process.env.LABEL_PREFIX ?? 'autostop.';
+    this.ipCache = new Map();
+        this.ipCacheTTL = 300; // seconds
+        this.labelPrefix = process.env.LABEL_PREFIX ?? 'autostop.';
     this.rescanTimer = null;
   }
 
