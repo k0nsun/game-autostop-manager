@@ -87,13 +87,29 @@ export async function queryServerState({
   );
 
   const d = data?.data || {};
-  const state = String(d.ServerState || d.serverState || '').toLowerCase();
-  const players =
-    (Array.isArray(d.ConnectedPlayers) ? d.ConnectedPlayers.length : undefined) ??
-    (Array.isArray(d.connectedPlayers) ? d.connectedPlayers.length : undefined) ??
-    d.PlayerCount ??
-    d.playerCount ??
-    0;
+  
+  // Determine server state
+  let state = '';
+  if (d.serverGameState?.isGameRunning) {
+    state = 'playing';
+  } else {
+    state = String(d.ServerState || d.serverState || 'offline').toLowerCase();
+  }
+  
+  // Handle different API response formats for player count
+  let players = 0;
+  if (d.serverGameState?.numConnectedPlayers !== undefined) {
+    // Format: { data: { serverGameState: { numConnectedPlayers: N } } }
+    players = d.serverGameState.numConnectedPlayers;
+  } else if (Array.isArray(d.ConnectedPlayers)) {
+    players = d.ConnectedPlayers.length;
+  } else if (Array.isArray(d.connectedPlayers)) {
+    players = d.connectedPlayers.length;
+  } else if (d.PlayerCount !== undefined) {
+    players = d.PlayerCount;
+  } else if (d.playerCount !== undefined) {
+    players = d.playerCount;
+  }
 
   return { state, players: Number(players) || 0 };
 }
