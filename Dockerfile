@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev || npm install --omit=dev
 COPY . .
-EXPOSE 8080
+EXPOSE 8090
 ENV DATA_DIR=/data
 VOLUME ["/data"]
 CMD ["npm","start"]
