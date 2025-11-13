@@ -9,7 +9,7 @@
  */
 
 import Gamedig from 'gamedig';
-import { pollSatisfactory } from './providers/satisfactory.js';
+import { pollSatisfactory } from './satisfactory.js';
 
 /**
  * Poll a single watcher once and update its state.

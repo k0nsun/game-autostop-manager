@@ -13,6 +13,7 @@ All documentation is now in the `docs/` folder for better organization:
 | Document | Purpose |
 |----------|---------|
 | **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)** | ⚡ Get started in 3 steps |
+| **[docs/UNRAID_INSTALL.md](./docs/UNRAID_INSTALL.md)** | 🎮 Complete Unraid install guide (débutant) |
 | **[docs/README_FULL.md](./docs/README_FULL.md)** | 📖 Full user guide & deployment |
 | **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | 🏗️ Code structure & modules |
 | **[docs/DESIGN.md](./docs/DESIGN.md)** | 🎨 UI/UX design system |
@@ -88,6 +89,7 @@ src/
 All documentation is organized in the `docs/` folder:
 
 - **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)** - Quick 3-step setup ⚡
+- **[docs/UNRAID_INSTALL.md](./docs/UNRAID_INSTALL.md)** - Complete Unraid guide for beginners 🎮
 - **[docs/README_FULL.md](./docs/README_FULL.md)** - Complete user guide
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Technical design
 - **[docs/DESIGN.md](./docs/DESIGN.md)** - UI/UX specifications
