@@ -66,7 +66,7 @@ export async function tickOne(
     // Query player count based on game type
     if (watcher.gamedigType === 'satisfactory') {
       // Satisfactory: use custom HTTPS API
-      const result = await pollSatisfactory(watcher, docker, resolveContainerIPWithCache);
+      const result = await pollSatisfactory(watcher);
       players = result.players;
     } else {
       // Other games: use GameDig

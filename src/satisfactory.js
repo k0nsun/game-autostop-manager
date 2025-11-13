@@ -121,31 +121,20 @@ export async function queryServerState({
 /**
  * Poll Satisfactory server for current player count.
  * Handles both token-based and password-based authentication.
- * Automatically resolves container name to IP if needed.
  *
  * @param {Object} watcher - Watcher configuration object
- * @param {string} watcher.host - Server IP, hostname, or container name
+ * @param {string} watcher.host - Server IP or hostname
  * @param {number} watcher.port - API port (default 7777)
  * @param {string} watcher.apiToken - API token (optional)
  * @param {string} watcher.adminPassword - Admin password (optional, legacy)
  * @param {number} watcher.timeoutMs - Request timeout (default 4000)
- * @param {Object} docker - Dockerode instance (optional, for resolving container names)
- * @param {Function} resolveContainerIPWithCache - Function to resolve IP (optional)
  * @returns {Promise<Object>} { available: boolean, players: number }
  */
-export async function pollSatisfactory(watcher, docker, resolveContainerIPWithCache) {
+export async function pollSatisfactory(watcher) {
   try {
-    let host = watcher.host;
+    const host = watcher.host;
     const port = Number(watcher.port) || 7777;
     const timeoutMs = Number(watcher.timeoutMs) || 4000;
-
-    // If host looks like a container name (not an IP), resolve it
-    if (docker && resolveContainerIPWithCache && host && !host.match(/^\d+\./)) {
-      const resolvedIP = await resolveContainerIPWithCache(docker, host, new Map(), 300);
-      if (resolvedIP) {
-        host = resolvedIP;
-      }
-    }
 
     let token = watcher.apiToken || process.env.SATISFACTORY_API_TOKEN;
 
