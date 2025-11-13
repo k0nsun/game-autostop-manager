@@ -1,153 +1,173 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Game Auto‑Stop Manager</title>
+  <title>Game Auto-Stop Manager</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="app-header">
-    <h1>Game Auto‑Stop Manager</h1>
+    <h1>Game Auto-Stop Manager</h1>
     <div class="header-actions">
-      <!-- Optional admin token: stored locally and sent as Authorization header if present -->
       <label for="adminToken" class="sr-only">Admin token</label>
       <input id="adminToken" type="password" placeholder="Admin token (optional)" />
-      <button id="saveTokenBtn" class="btn btn-secondary" title="Save in this browser only">Save token</button>
+      <button id="saveTokenBtn" class="btn btn-secondary" title="Save in this browser only">Save</button>
     </div>
   </header>
 
-  <main class="app-main container">
-    <section class="grid">
-      <!-- Left column: form + watchers list -->
-      <div class="col">
-        <div class="card">
-          <div class="card-header">
-            <h2>Create watcher</h2>
+  <main class="app-main">
+    <div class="container">
+      <section class="grid">
+        <!-- Left column: form + watchers list -->
+        <div class="col">
+          <div class="card">
+            <div class="card-header">
+              <h2>➕ Create Watcher</h2>
+            </div>
+            <div class="card-body">
+              <form id="createForm" class="form-grid" autocomplete="off">
+                <div class="form-row">
+                  <label for="name">Name</label>
+                  <input id="name" name="name" placeholder="e.g., V-Rising" required />
+                </div>
+                <div class="form-row">
+                  <label for="targetContainer">Target Container</label>
+                  <input id="targetContainer" name="targetContainer" placeholder="Container name or ID" required />
+                </div>
+
+                <div class="form-row">
+                  <label for="gamedigType">Game Type</label>
+                  <select id="gamedigType" name="gamedigType" required>
+                    <option value="">Select a game type…</option>
+                    <option value="protocol-valve">Steam A2S (protocol-valve)</option>
+                    <option value="vrising">V Rising</option>
+                    <option value="valheim">Valheim</option>
+                    <option value="minecraft">Minecraft</option>
+                    <option value="seven_days_to_die">7 Days to Die</option>
+                    <option value="satisfactory">Satisfactory</option>
+                  </select>
+                </div>
+
+                <div id="gamedigFields" class="form-row two">
+                  <div>
+                    <label for="queryHost">Host</label>
+                    <input id="queryHost" name="queryHost" placeholder="IP or DNS" />
+                  </div>
+                  <div>
+                    <label for="queryPort">Port</label>
+                    <input id="queryPort" name="queryPort" type="number" min="1" max="65535" placeholder="e.g., 9877" />
+                  </div>
+                </div>
+
+                <div id="satisfactoryFields" class="form-row two" style="display: none;">
+                  <div>
+                    <label for="host">Host</label>
+                    <input id="host" name="host" placeholder="IP or container name" />
+                  </div>
+                  <div>
+                    <label for="port">Port</label>
+                    <input id="port" name="port" type="number" min="1" max="65535" placeholder="7777" value="7777" />
+                  </div>
+                </div>
+
+                <div id="satisfactoryToken" style="display: none;">
+                  <div class="form-row">
+                    <label for="apiToken">API Token</label>
+                    <input id="apiToken" name="apiToken" type="password" placeholder="Satisfactory API token" />
+                  </div>
+                </div>
+
+                <div class="form-row three">
+                  <div>
+                    <label for="inactivityMinutes">Inactivity (min)</label>
+                    <input id="inactivityMinutes" name="inactivityMinutes" type="number" min="1" step="1" value="10" required />
+                  </div>
+                  <div>
+                    <label for="checkIntervalSec">Check Interval (sec)</label>
+                    <input id="checkIntervalSec" name="checkIntervalSec" type="number" min="5" step="1" value="60" required />
+                  </div>
+                  <div>
+                    <label for="stopTimeoutSec">Stop Timeout (sec)</label>
+                    <input id="stopTimeoutSec" name="stopTimeoutSec" type="number" min="5" step="1" value="60" required />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label class="checkbox">
+                    <input id="autostart" name="autostart" type="checkbox" checked />
+                    <span>Auto-start on boot</span>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="btn">Add Watcher</button>
+                  <button type="reset" class="btn btn-secondary">Reset</button>
+                </div>
+              </form>
+            </div>
           </div>
-          <div class="card-body">
-            <form id="createForm" class="form-grid" autocomplete="off">
-              <div class="form-row">
-                <label for="name">Name</label>
-                <input id="name" name="name" placeholder="e.g., V-Rising" required />
-              </div>
-              <div class="form-row">
-                <label for="targetContainer">Target container</label>
-                <input id="targetContainer" name="targetContainer" placeholder="Container name or ID" required />
-              </div>
 
-              <div class="form-row">
-                <label for="gamedigType">Gamedig type</label>
-                <select id="gamedigType" name="gamedigType" required>
-                  <option value="">Select…</option>
-                  <option value="protocol-valve">protocol-valve (Steam A2S)</option>
-                  <option value="vrising">vrising</option>
-                  <option value="valheim">valheim</option>
-                  <option value="minecraft">minecraft</option>
-                  <option value="seven_days_to_die">seven_days_to_die</option>
-                </select>
+          <div class="card">
+            <div class="card-header with-actions">
+              <h2>📊 Watchers</h2>
+              <div class="inline-actions">
+                <button id="refreshBtn" class="btn btn-secondary small" title="Reload list">🔄 Refresh</button>
               </div>
-
-              <div class="form-row two">
-                <div>
-                  <label for="queryHost">Host</label>
-                  <input id="queryHost" name="queryHost" placeholder="IP or DNS" required />
-                </div>
-                <div>
-                  <label for="queryPort">Port</label>
-                  <input id="queryPort" name="queryPort" type="number" min="1" max="65535" placeholder="e.g., 9877" required />
-                </div>
+            </div>
+            <div class="card-body">
+              <div class="table-wrap">
+                <table id="watchersTable" class="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Container</th>
+                      <th>Host:Port</th>
+                      <th>Type</th>
+                      <th>Interval</th>
+                      <th>Inactivity</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Filled by app.js -->
+                  </tbody>
+                </table>
               </div>
+            </div>
+          </div>
+        </div>
 
-              <div class="form-row three">
-                <div>
-                  <label for="inactivityMinutes">Inactivity (min)</label>
-                  <input id="inactivityMinutes" name="inactivityMinutes" type="number" min="1" step="1" value="10" required />
-                </div>
-                <div>
-                  <label for="checkIntervalSec">Interval (sec)</label>
-                  <input id="checkIntervalSec" name="checkIntervalSec" type="number" min="5" step="1" value="60" required />
-                </div>
-                <div>
-                  <label for="stopTimeoutSec">Stop timeout (sec)</label>
-                  <input id="stopTimeoutSec" name="stopTimeoutSec" type="number" min="5" step="1" value="60" required />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <label class="checkbox">
-                  <input id="autostart" name="autostart" type="checkbox" checked />
-                  <span>Autostart</span>
+        <!-- Right column: events -->
+        <div class="col">
+          <div class="card">
+            <div class="card-header with-actions">
+              <h2>📝 Events</h2>
+              <div class="inline-actions">
+                <label class="checkbox small">
+                  <input id="autoScroll" type="checkbox" checked />
+                  <span>Auto-scroll</span>
                 </label>
+                <button id="clearLogBtn" class="btn btn-secondary small">Clear</button>
               </div>
-
-              <div class="form-actions">
-                <button type="submit" class="btn">Add watcher</button>
-                <button type="reset" class="btn btn-secondary">Reset</button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header with-actions">
-            <h2>Watchers</h2>
-            <div class="inline-actions">
-              <button id="refreshBtn" class="btn btn-secondary" title="Reload list">Refresh</button>
             </div>
-          </div>
-          <div class="card-body">
-            <div class="table-wrap">
-              <table id="watchersTable" class="table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Container</th>
-                    <th>Host:Port</th>
-                    <th>Type</th>
-                    <th>Interval</th>
-                    <th>Inactivity</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Filled by app.js -->
-                </tbody>
-              </table>
+            <div class="card-body">
+              <pre id="events" class="log" aria-live="polite" aria-atomic="false"></pre>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Right column: events -->
-      <div class="col">
-        <div class="card">
-          <div class="card-header with-actions">
-            <h2>Events</h2>
-            <div class="inline-actions">
-              <label class="checkbox small">
-                <input id="autoScroll" type="checkbox" checked />
-                <span>Auto‑scroll</span>
-              </label>
-              <button id="clearLogBtn" class="btn btn-secondary">Clear</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <pre id="events" class="log" aria-live="polite" aria-atomic="false"></pre>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
-  <!-- Edit modal: stays open regardless of log activity -->
+  <!-- Edit modal -->
   <div id="editModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Edit watcher">
     <div class="modal-backdrop" data-close="true"></div>
     <div class="modal-dialog" role="document">
       <div class="modal-header">
-        <h3>Edit watcher</h3>
-        <button class="icon-btn" id="closeEditBtn" title="Close">×</button>
+        <h3>✏️ Edit Watcher</h3>
+        <button class="icon-btn" id="closeEditBtn" title="Close (Escape)">✕</button>
       </div>
       <div class="modal-body">
         <form id="editForm" class="form-grid">
@@ -157,27 +177,44 @@
             <input id="edit_name" required />
           </div>
           <div class="form-row">
-            <label for="edit_targetContainer">Target container</label>
+            <label for="edit_targetContainer">Target Container</label>
             <input id="edit_targetContainer" required />
           </div>
           <div class="form-row">
-            <label for="edit_gamedigType">Gamedig type</label>
+            <label for="edit_gamedigType">Game Type</label>
             <select id="edit_gamedigType" required>
-              <option value="protocol-valve">protocol-valve (Steam A2S)</option>
-              <option value="vrising">vrising</option>
-              <option value="valheim">valheim</option>
-              <option value="minecraft">minecraft</option>
-              <option value="seven_days_to_die">seven_days_to_die</option>
+              <option value="protocol-valve">Steam A2S (protocol-valve)</option>
+              <option value="vrising">V Rising</option>
+              <option value="valheim">Valheim</option>
+              <option value="minecraft">Minecraft</option>
+              <option value="seven_days_to_die">7 Days to Die</option>
+              <option value="satisfactory">Satisfactory</option>
             </select>
           </div>
-          <div class="form-row two">
+          <div id="edit_gamedigFields" class="form-row two">
             <div>
               <label for="edit_queryHost">Host</label>
-              <input id="edit_queryHost" required />
+              <input id="edit_queryHost" placeholder="IP or DNS" />
             </div>
             <div>
               <label for="edit_queryPort">Port</label>
-              <input id="edit_queryPort" type="number" min="1" max="65535" required />
+              <input id="edit_queryPort" type="number" min="1" max="65535" />
+            </div>
+          </div>
+          <div id="edit_satisfactoryFields" class="form-row two" style="display: none;">
+            <div>
+              <label for="edit_host">Host</label>
+              <input id="edit_host" placeholder="IP or container name" />
+            </div>
+            <div>
+              <label for="edit_port">Port</label>
+              <input id="edit_port" type="number" min="1" max="65535" placeholder="7777" />
+            </div>
+          </div>
+          <div id="edit_satisfactoryToken" style="display: none;">
+            <div class="form-row">
+              <label for="edit_apiToken">API Token</label>
+              <input id="edit_apiToken" type="password" placeholder="Satisfactory API token" />
             </div>
           </div>
           <div class="form-row three">
@@ -186,24 +223,24 @@
               <input id="edit_inactivityMinutes" type="number" min="1" step="1" required />
             </div>
             <div>
-              <label for="edit_checkIntervalSec">Interval (sec)</label>
+              <label for="edit_checkIntervalSec">Check Interval (sec)</label>
               <input id="edit_checkIntervalSec" type="number" min="5" step="1" required />
             </div>
             <div>
-              <label for="edit_stopTimeoutSec">Stop timeout (sec)</label>
+              <label for="edit_stopTimeoutSec">Stop Timeout (sec)</label>
               <input id="edit_stopTimeoutSec" type="number" min="5" step="1" required />
             </div>
           </div>
           <div class="form-row">
             <label class="checkbox">
               <input id="edit_autostart" type="checkbox" />
-              <span>Autostart</span>
+              <span>Auto-start on boot</span>
             </label>
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button id="saveEditBtn" class="btn">Save changes</button>
+        <button id="saveEditBtn" class="btn">💾 Save Changes</button>
         <button class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
       </div>
     </div>
